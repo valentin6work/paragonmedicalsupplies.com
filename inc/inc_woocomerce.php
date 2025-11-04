@@ -1523,6 +1523,12 @@ function custom_account_menu_endpoint() {
     add_rewrite_endpoint('account_info', EP_PAGES);
 }
 add_action('init', 'custom_account_menu_endpoint');
+add_filter('query_vars', function($vars){
+    $vars[] = 'my_invoice';
+    $vars[] = 'account_info';
+    return $vars;
+});
+
 
 function custom_account_page_content() {
     $template_path = get_template_directory() . '/woocommerce/myaccount/my-invoice.php';

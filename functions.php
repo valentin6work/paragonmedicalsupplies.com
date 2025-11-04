@@ -21,9 +21,8 @@ if ( is_array($included) && count($included))
     }
 }
 
-add_action( 'init', function() {
-  // update_option( 'admin_email', 'b.salkini@paragonmedicalsupplies.com' );
-});
-
+/*add_action( 'init', function() {
+   update_option( 'admin_email', 'b.salkini@paragonmedicalsupplies.com' );
+});*/
 
 ?>
