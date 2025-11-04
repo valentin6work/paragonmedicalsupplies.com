@@ -1,0 +1,38 @@
+.form__success
+{
+    border: #109be7 1px solid;
+    color: #109be7;
+    text-align: center;
+    padding: 5px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.form__error
+{
+    border: #d50000 1px solid;
+    color: #d50000;
+    text-align: center;
+    padding: 5px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.add_cart input
+{
+    border: 1px gray solid;
+}
+
+.add_shipping_field_custom input
+{
+    border: 1px gray solid;
+}
+
+.product__description
+{
+    display: flex;
+    flex-direction: column;
+    row-gap: 10px;
+}
