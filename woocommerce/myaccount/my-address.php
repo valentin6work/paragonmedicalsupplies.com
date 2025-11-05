@@ -119,13 +119,13 @@ $billing_field_saved = get_user_meta($user_id, 'billing_field_saved', true);
                         <div class="shipping-and-billing__card">
                             <p>
                                 <select name="type_cart" id="type_cart">
-                                    <option value="">Select type cart</option>
+                                    <option value="">Select type card</option>
                                     <option value="visa">Visa</option>
                                     <option value="mastercard">Mastercard</option>
                                 </select>
                             </p>
                             <p>
-                                <input type="text" placeholder="Cart number" name="cart_number" id="cart_number">
+                                <input type="text" placeholder="Card number" name="cart_number" id="cart_number">
                             </p>
                         </div>
                     </div>
