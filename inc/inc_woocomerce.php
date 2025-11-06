@@ -1558,27 +1558,61 @@ function custom_account_rewrite_flush() {
 add_action('after_switch_theme', 'custom_account_rewrite_flush');
 
 
-add_filter('woocommerce_checkout_fields', 'customize_shipping_checkout_fields');
+add_filter('woocommerce_checkout_fields', 'customize_shipping_checkout_fields', 20);
 function customize_shipping_checkout_fields($fields) {
+    // Безпечні отримання об'єктів
+    $countries_obj = function_exists('WC') && WC()->countries ? WC()->countries : null;
+    $customer_obj  = function_exists('WC') && WC()->customer  ? WC()->customer  : null;
 
-    $fields['shipping']['shipping_country'] = array(
-        'type'        => 'select',
-        'label'       => __('Shipping Country', 'woocommerce'),
-        'required'    => true,
-        'class'       => array('form-row-wide'),
-        'options'     => array('' => __('Select a country', 'woocommerce')) + WC()->countries->get_allowed_countries(),
-    );
+    // Країни
+    $allowed_countries = $countries_obj ? $countries_obj->get_allowed_countries() : [];
+    if (!is_array($allowed_countries)) $allowed_countries = [];
 
-    $fields['shipping']['shipping_state'] = array(
-        'type'        => 'select',
-        'label'       => __('Shipping State/Province', 'woocommerce'),
-        'required'    => true,
-        'class'       => array('form-row-wide'),
-        'options'     => array('' => __('Select a state', 'woocommerce')) + WC()->countries->get_states(WC()->customer->get_shipping_country()),
-    );
+    $fields['shipping']['shipping_country'] = [
+        'type'     => 'select',
+        'label'    => __('Shipping Country', 'woocommerce'),
+        'required' => true,
+        'class'    => ['form-row-wide','update_totals_on_change'],
+        'options'  => array_merge(
+            ['' => __('Select a country', 'woocommerce')],
+            $allowed_countries
+        ),
+    ];
+
+    // Штати/регіони для обраної країни
+    $shipping_country = $customer_obj ? $customer_obj->get_shipping_country() : '';
+    $states = [];
+
+    if ($countries_obj && $shipping_country) {
+        $tmp = $countries_obj->get_states($shipping_country);
+        if (is_array($tmp)) $states = $tmp;
+    }
+
+    if (!empty($states)) {
+        $fields['shipping']['shipping_state'] = [
+            'type'     => 'select',
+            'label'    => __('Shipping State/Province', 'woocommerce'),
+            'required' => true,
+            'class'    => ['form-row-wide'],
+            'options'  => array_merge(
+                ['' => __('Select a state', 'woocommerce')],
+                $states
+            ),
+        ];
+    } else {
+        // Якщо штатів нема — просте текстове поле
+        $fields['shipping']['shipping_state'] = [
+            'type'        => 'text',
+            'label'       => __('Shipping State/Province', 'woocommerce'),
+            'required'    => false,
+            'class'       => ['form-row-wide'],
+            'placeholder' => __('State/Province', 'woocommerce'),
+        ];
+    }
 
     return $fields;
 }
+
 
 
 function set_default_shipping_first_name( $value, $input ) {
