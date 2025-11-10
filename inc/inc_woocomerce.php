@@ -1301,40 +1301,50 @@ function is_user_company() {
     return false;
 }
 
-function personal_discount($variation_id=0,$regular_price=0,$sale_price=0)
+function personal_discount($product_or_variation_id = 0, $regular_price = 0, $sale_price = 0)
 {
-    if (is_user_company())
-    {
-        $rows = get_post_meta($variation_id, '_custom_table_data', true);
+    if ( ! is_user_logged_in() ) {
+        return ['regular_price' => $regular_price, 'sale_price' => $sale_price];
+    }
 
-        if (is_array($rows) && count($rows))
-        {
-            $user = wp_get_current_user();
-            $user_id = $user->ID;
-            foreach ($rows as $item)
-            {
-                if ( (int)$item['user']==$user_id)
-                {
-                    $percent = (float)$item['text'];
+    $current = wp_get_current_user();
+    $uid = (int)$current->ID;
+    $best_percent = 0;
 
-                    if ($percent>1)
-                    {
-                        $percent = $percent/100;
-                        if ($regular_price && $regular_price!=0)
-                            $regular_price = round($regular_price - ($regular_price*$percent),2);
-                        if ($sale_price && $sale_price!=0)
-                            $sale_price = round($sale_price - ($sale_price*$percent),2);
-                    }
-                }
+    // 1) Персональна знижка на пості (варіація або продукт) з meta _custom_table_data (як було)
+    $rows = get_post_meta($product_or_variation_id, '_custom_table_data', true);
+    if (is_array($rows)) {
+        foreach ($rows as $item) {
+            $user_raw = isset($item['user']) ? $item['user'] : 0;
+            $item_uid = is_object($user_raw) ? (int)$user_raw->ID : (is_array($user_raw) ? (int)($user_raw['ID'] ?? 0) : (int)$user_raw);
+            if ($item_uid === $uid) {
+                $p = (float)($item['text'] ?? 0);
+                if ($p > $best_percent) $best_percent = $p;
             }
         }
     }
 
-    return [
-        'regular_price' =>$regular_price,
-        'sale_price' =>$sale_price,
-    ];
+    // 2) Глобальна знижка ACF: options page group "global_discounts_for_users" → repeater "discounts_users" (fields: user, discounts)
+    if (function_exists('get_field')) {
+        $global = get_field('global_discounts_for_users', 'option');
+        $rows2 = is_array($global) && isset($global['discounts_users']) ? $global['discounts_users'] : [];
+        foreach ($rows2 as $row) {
+            $user_raw = $row['user'] ?? 0;
+            $row_uid  = is_object($user_raw) ? (int)$user_raw->ID : (is_array($user_raw) ? (int)($user_raw['ID'] ?? 0) : (int)$user_raw);
+            $p = (float)($row['discounts'] ?? 0);
+            if ($row_uid === $uid && $p > $best_percent) $best_percent = $p;
+        }
+    }
+
+    if ($best_percent > 0) {
+        $k = ($best_percent > 1) ? $best_percent / 100 : $best_percent;
+        if ($regular_price) $regular_price = round($regular_price - $regular_price * $k, 2);
+        if ($sale_price)    $sale_price    = round($sale_price    - $sale_price    * $k, 2);
+    }
+
+    return ['regular_price' => $regular_price, 'sale_price' => $sale_price];
 }
+
 
 function get_list_discount()
 {
@@ -1381,39 +1391,34 @@ add_action('woocommerce_before_calculate_totals', 'set_custom_price_in_cart', 10
 function set_custom_price_in_cart($cart) {
     if (is_admin() && !defined('DOING_AJAX')) return;
 
+    foreach ($cart->get_cart() as $key => $item) {
+        // 2.1 Якщо custom_price немає — рахуємо на льоту (і для простих товарів теж)
+        if (empty($item['custom_price'])) {
+            $prod = $item['data'];
+            $product_id   = method_exists($prod,'get_parent_id') && $prod->get_parent_id() ? $prod->get_parent_id() : $prod->get_id();
+            $variation_id = method_exists($prod,'get_variation_id') ? (int)$prod->get_variation_id() : 0;
+            $base_id = $variation_id ?: $product_id;
 
-    //$total_quantity = $cart->get_cart_contents_count();
+            $base_price = (float)$prod->get_price();
+            $priced = personal_discount($base_id, $base_price, 0);
+            if (!empty($priced['regular_price'])) {
+                $prod->set_price($priced['regular_price']);
+            }
+        } else {
+            // 2.2 Якщо custom_price вже є (наш AJAX) — підставляємо як і раніше
+            $item['data']->set_price((float)$item['custom_price']);
+        }
+    }
 
-
-
-
+    // 2.3 Далі — ваша кількісна знижка 10/15/20 шт. (залишається як було)
     foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
-        if (isset($cart_item['custom_price']) && (float)$cart_item['custom_price']>0 ) {
-            $cart_item['data']->set_price($cart_item['custom_price']);
+        $qty = $cart_item['quantity'];
+        $pct = $qty >= 20 ? 20 : ($qty >= 15 ? 15 : ($qty >= 10 ? 10 : 0));
+        if ($pct) {
+            $price = (float)$cart_item['data']->get_price();
+            $cart_item['data']->set_price($price * (1 - $pct / 100));
         }
     }
-
-
-    foreach ($cart->get_cart() as $cart_item_key => $cart_item)
-    {
-        $total_quantity = $cart_item['quantity'];
-
-        $discount_percentage = 0;
-        if ($total_quantity >= 20) {
-            $discount_percentage = 20;
-        } elseif ($total_quantity >= 15) {
-            $discount_percentage = 15;
-        } elseif ($total_quantity >= 10) {
-            $discount_percentage = 10;
-        }
-
-        if ($discount_percentage) {
-            $product_price = $cart_item['data']->get_price();
-            $discounted_price = $product_price * (1 - $discount_percentage / 100);
-            $cart_item['data']->set_price($discounted_price);
-        }
-    }
-
 }
 
 //--------------- CHECK OUT ------
