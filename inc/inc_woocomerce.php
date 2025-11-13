@@ -1800,3 +1800,89 @@ add_filter('woocommerce_add_to_cart_fragments', function($fragments){
 
 
 
+
+
+
+/* === Quantity Discount System using ACF repeater (keeps base price) === */
+
+/**
+ * Отримати % знижки по кількості з ACF repeater cost_discount
+ * Структура: rows: [ [count => 10, percentage => 10], ... ]
+ * qty < мінімального count => 0%
+ * qty в діапазоні => останній підходящий поріг.
+ */
+if ( ! function_exists( 'get_quantity_discount_percent' ) ) {
+    function get_quantity_discount_percent( $product_id, $qty ) {
+        if ( ! function_exists( 'get_field' ) ) {
+            return 0;
+        }
+
+        $rows = get_field( 'cost_discount', $product_id );
+
+        // Якщо репітер заданий на батьківському продукті
+        if ( ( ! is_array( $rows ) || empty( $rows ) ) && ( $parent_id = wp_get_post_parent_id( $product_id ) ) ) {
+            $rows = get_field( 'cost_discount', $parent_id );
+        }
+
+        if ( ! is_array( $rows ) || empty( $rows ) ) {
+            return 0;
+        }
+
+        // Сортуємо по count
+        usort( $rows, function( $a, $b ) {
+            return intval( $a['count'] ) - intval( $b['count'] );
+        } );
+
+        $percent = 0;
+
+        foreach ( $rows as $row ) {
+            $count = isset( $row['count'] ) ? intval( $row['count'] ) : 0;
+            $p     = isset( $row['percentage'] ) ? floatval( $row['percentage'] ) : 0;
+
+            if ( $qty >= $count && $count > 0 ) {
+                $percent = $p;
+            }
+        }
+
+        return $percent;
+    }
+}
+
+/**
+ * Додаємо знижку як негативний fee.
+ * Базова ціна товару НЕ змінюється, в картці відображається як є (Basic price),
+ * підсумок Total рахується: Subtotal - Quantity Discount.
+ */
+if ( ! function_exists( 'apply_acf_quantity_discounts_fee' ) ) {
+    add_action( 'woocommerce_cart_calculate_fees', 'apply_acf_quantity_discounts_fee', 20, 1 );
+    function apply_acf_quantity_discounts_fee( $cart ) {
+        if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+            return;
+        }
+
+        if ( ! $cart ) {
+            return;
+        }
+
+        $total_discount = 0;
+
+        foreach ( $cart->get_cart() as $cart_item ) {
+            $product    = $cart_item['data'];
+            $product_id = $product->get_id();
+            $qty        = $cart_item['quantity'];
+
+            $percent = get_quantity_discount_percent( $product_id, $qty );
+
+            if ( $percent > 0 ) {
+                $line_price    = floatval( $product->get_price() ) * $qty;
+                $line_discount = $line_price * ( $percent / 100 );
+                $total_discount += $line_discount;
+            }
+        }
+
+        if ( $total_discount > 0 ) {
+            // Негативний fee – WooCommerce автоматично віднімає його від Total
+            $cart->add_fee( __( 'Quantity Discount', 'woocommerce' ), - $total_discount, false );
+        }
+    }
+}
