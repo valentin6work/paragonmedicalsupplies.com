@@ -1411,14 +1411,14 @@ function set_custom_price_in_cart($cart) {
     }
 
     // 2.3 Далі — ваша кількісна знижка 10/15/20 шт. (залишається як було)
-    foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+    /*foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
         $qty = $cart_item['quantity'];
         $pct = $qty >= 20 ? 20 : ($qty >= 15 ? 15 : ($qty >= 10 ? 10 : 0));
         if ($pct) {
             $price = (float)$cart_item['data']->get_price();
             $cart_item['data']->set_price($price * (1 - $pct / 100));
         }
-    }
+    }*/
 }
 
 //--------------- CHECK OUT ------
