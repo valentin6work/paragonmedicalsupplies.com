@@ -1677,6 +1677,7 @@ function add_discount_to_order_meta($order, $data) {
     $discount_percentage = 0;
     $discount_total = 0;
 
+
     foreach ($order->get_items() as $item) {
         $total_quantity = $item->get_quantity();
         $product_price = $item->get_subtotal();
@@ -1694,6 +1695,8 @@ function add_discount_to_order_meta($order, $data) {
         }
     }
 
+
+
     if ($discount_percentage > 0) {
         $order->add_meta_data(__('Quantity Discount Percentage', 'your-text-domain'), $discount_percentage . '%');
         $order->add_meta_data(__('Quantity Discount Total', 'your-text-domain'), $discount_total);
@@ -1706,6 +1709,7 @@ function display_quantity_discount_cart() {
     $total_quantity = $cart->get_cart_contents_count();
     $discount_percentage = 0;
 
+    /*
     if ($total_quantity >= 20) {
         $discount_percentage = 20;
     } elseif ($total_quantity >= 15) {
@@ -1713,9 +1717,44 @@ function display_quantity_discount_cart() {
     } elseif ($total_quantity >= 10) {
         $discount_percentage = 10;
     }
+    */
 
-    if ($discount_percentage > 0) {
-        $discount = $cart->get_subtotal() * ($discount_percentage / 100);
+
+    if ( ! $cart instanceof WC_Cart ) {
+        return;
+    }
+
+    $total_discount = 0.0;
+
+    foreach ( $cart->get_cart() as $cart_item ) {
+
+        if ( empty( $cart_item['data'] ) || ! $cart_item['data'] instanceof WC_Product ) {
+            continue;
+        }
+
+        $product = $cart_item['data'];
+        $qty     = isset( $cart_item['quantity'] ) ? intval( $cart_item['quantity'] ) : 0;
+
+        if ( $qty <= 0 ) {
+            continue;
+        }
+
+        $percent = paragon_get_quantity_discount_percent( $product, $qty );
+
+        if ( $percent <= 0 ) {
+            continue; // для цього конкретного товару немає жодної діючої знижки
+        }
+
+        $line_price    = floatval( $product->get_price() ) * $qty;
+        $line_discount = $line_price * ( $percent / 100.0 );
+
+        $total_discount += $line_discount;
+    }
+
+    if ($total_discount > 0)
+    {
+
+        $discount = $total_discount;
 
         echo "
             <div class=\"wp-block-woocommerce-cart-order-summary-shipping-block wc-block-components-totals-wrapper\">
@@ -1726,6 +1765,7 @@ function display_quantity_discount_cart() {
             </div>
         ";
     }
+
 }
 
 add_action('woocommerce_admin_order_data_after_order_details', 'display_discount_in_admin');
@@ -1802,45 +1842,67 @@ add_filter('woocommerce_add_to_cart_fragments', function($fragments){
 
 
 
-
-/* === Quantity Discount System using ACF repeater (keeps base price) === */
+/* === Quantity Discount System using ACF repeater (strict per-product) === */
 
 /**
- * Отримати % знижки по кількості з ACF repeater cost_discount
- * Структура: rows: [ [count => 10, percentage => 10], ... ]
- * qty < мінімального count => 0%
- * qty в діапазоні => останній підходящий поріг.
+ * Повертає % знижки по кількості з ACF repeater 'cost_discount'.
+ * Використовує have_rows()/get_sub_field, тому знижка застосовується
+ * ТІЛЬКИ до того продукту, на якому реально заповнений репітер.
  */
-if ( ! function_exists( 'get_quantity_discount_percent' ) ) {
-    function get_quantity_discount_percent( $product_id, $qty ) {
-        if ( ! function_exists( 'get_field' ) ) {
+if ( ! function_exists( 'paragon_get_quantity_discount_percent' ) ) {
+    function paragon_get_quantity_discount_percent( WC_Product $product, $qty ) {
+
+        if ( ! function_exists( 'have_rows' ) ) {
             return 0;
         }
 
-        $rows = get_field( 'cost_discount', $product_id );
-
-        // Якщо репітер заданий на батьківському продукті
-        if ( ( ! is_array( $rows ) || empty( $rows ) ) && ( $parent_id = wp_get_post_parent_id( $product_id ) ) ) {
-            $rows = get_field( 'cost_discount', $parent_id );
-        }
-
-        if ( ! is_array( $rows ) || empty( $rows ) ) {
+        $qty = intval( $qty );
+        if ( $qty <= 0 ) {
             return 0;
         }
 
-        // Сортуємо по count
+        // Для variation беремо батьківський товар
+        $product_id_for_discount = $product->is_type( 'variation' )
+            ? $product->get_parent_id()
+            : $product->get_id();
+
+        if ( ! $product_id_for_discount ) {
+            return 0;
+        }
+
+        if ( ! have_rows( 'cost_discount', $product_id_for_discount ) ) {
+            return 0; // немає жодного рядка репітера на цьому товарі
+        }
+
+        $rows = array();
+
+        // Збираємо всі рядки, щоб можна було відсортувати за count
+        while ( have_rows( 'cost_discount', $product_id_for_discount ) ) {
+            the_row();
+            $rows[] = array(
+                'count'      => intval( get_sub_field( 'count' ) ),
+                'percentage' => floatval( get_sub_field( 'percentage' ) ),
+            );
+        }
+
+        if ( empty( $rows ) ) {
+            return 0;
+        }
+
+        // сортуємо по count
         usort( $rows, function( $a, $b ) {
             return intval( $a['count'] ) - intval( $b['count'] );
         } );
 
         $percent = 0;
 
-        foreach ( $rows as $row ) {
-            $count = isset( $row['count'] ) ? intval( $row['count'] ) : 0;
-            $p     = isset( $row['percentage'] ) ? floatval( $row['percentage'] ) : 0;
 
-            if ( $qty >= $count && $count > 0 ) {
-                $percent = $p;
+        foreach ( $rows as $row ) {
+            $count = $row['count'];
+            $p     = $row['percentage'];
+
+            if ( $count > 0 && $qty >= $count ) {
+                $percent = $p; // останній поріг, що підходить
             }
         }
 
@@ -1849,40 +1911,58 @@ if ( ! function_exists( 'get_quantity_discount_percent' ) ) {
 }
 
 /**
- * Додаємо знижку як негативний fee.
- * Базова ціна товару НЕ змінюється, в картці відображається як є (Basic price),
- * підсумок Total рахується: Subtotal - Quantity Discount.
+ * Додаємо quantity discount як негативний fee до замовлення в кошику.
+ * Базова ціна товару не змінюється, знижка застосовується тільки до товарів,
+ * у яких на самому продукті/батьківському продукті є репітер 'cost_discount'.
  */
-if ( ! function_exists( 'apply_acf_quantity_discounts_fee' ) ) {
-    add_action( 'woocommerce_cart_calculate_fees', 'apply_acf_quantity_discounts_fee', 20, 1 );
-    function apply_acf_quantity_discounts_fee( $cart ) {
+if ( ! function_exists( 'paragon_apply_acf_quantity_discounts_fee' ) ) {
+    add_action( 'woocommerce_cart_calculate_fees', 'paragon_apply_acf_quantity_discounts_fee', 20, 1 );
+    function paragon_apply_acf_quantity_discounts_fee( $cart ) {
+
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
             return;
         }
 
-        if ( ! $cart ) {
+        if ( ! $cart instanceof WC_Cart ) {
             return;
         }
 
-        $total_discount = 0;
+        $total_discount = 0.0;
 
         foreach ( $cart->get_cart() as $cart_item ) {
-            $product    = $cart_item['data'];
-            $product_id = $product->get_id();
-            $qty        = $cart_item['quantity'];
 
-            $percent = get_quantity_discount_percent( $product_id, $qty );
-
-            if ( $percent > 0 ) {
-                $line_price    = floatval( $product->get_price() ) * $qty;
-                $line_discount = $line_price * ( $percent / 100 );
-                $total_discount += $line_discount;
+            if ( empty( $cart_item['data'] ) || ! $cart_item['data'] instanceof WC_Product ) {
+                continue;
             }
+
+            $product = $cart_item['data'];
+            $qty     = isset( $cart_item['quantity'] ) ? intval( $cart_item['quantity'] ) : 0;
+
+            if ( $qty <= 0 ) {
+                continue;
+            }
+
+            $percent = paragon_get_quantity_discount_percent( $product, $qty );
+
+
+
+            if ( $percent <= 0 ) {
+                continue; // для цього конкретного товару немає жодної діючої знижки
+            }
+
+            $line_price    = floatval( $product->get_price() ) * $qty;
+            $line_discount = $line_price * ( $percent / 100.0 );
+
+            $total_discount += $line_discount;
         }
 
+
         if ( $total_discount > 0 ) {
-            // Негативний fee – WooCommerce автоматично віднімає його від Total
-            $cart->add_fee( __( 'Quantity Discount', 'woocommerce' ), - $total_discount, false );
+            $cart->add_fee(
+                __( 'Quantity Discount', 'woocommerce' ),
+                -1 * $total_discount,
+                false
+            );
         }
     }
 }

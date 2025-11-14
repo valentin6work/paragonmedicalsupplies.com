@@ -81,49 +81,77 @@ jQuery(document).ready(function(){
         });
     });
 
-    var old_var_id=0;
-    $(document).on('click','.wholesale-prices__item',function(e){
-       e.preventDefault();
 
-       $('.wholesale-prices__item').removeClass('active');
-       $(this).addClass('active');
 
-       let varid = $(this).data('varid');
-       let sale = $(this).data('sale');
-       let price = $(this).data('price');
 
-       if (old_var_id==0)
-       {
-           old_var_id = parseInt($('#variation_id').val());
-       }
+    // вибір пакету (10 / 15 / 20 коробок)
+    $(document).on('click', '.wholesale-prices__item', function (e) {
+        e.preventDefault();
 
-        $('#variation_id').val(varid);
+        $('.wholesale-prices__item').removeClass('active');
+        $(this).addClass('active');
 
+        // кількість з репітера (data-qty="10")
+        var qty = parseInt($(this).data('qty'), 10);
+        if (isNaN(qty) || qty <= 0) {
+            qty = 1;
+        }
+
+        // ставимо значення у твій input з кількістю
+        var $pcount = $('#pcount');
+        if ($pcount.length) {
+            $pcount.val(qty).trigger('change');
+        }
     });
 
-    $(document).on('click','a.ajax_add_to_cart',function(e){
-       e.preventDefault();
-        let href = $(this).attr('href');
-        let productId = href.match(/add-to-cart=(\d+)/)[1];
+
+// AJAX додавання в кошик по кліку на Add to Cart
+    $(document).on('click', 'a.ajax_add_to_cart', function (e) {
+        e.preventDefault();
+
+        var href = $(this).attr('href') || '';
+        var match = href.match(/add-to-cart=(\d+)/);
+        if (!match) {
+            console.error('Cannot get product_id from href');
+            return;
+        }
+
+        var productId = match[1];
+
+        // беремо кількість з #pcount, як ти просив
+        var qty = parseInt($('#pcount').val(), 10);
+        if (isNaN(qty) || qty <= 0) {
+            qty = 1;
+        }
+
+        // стандартний WooCommerce ajax url
+        var ajaxUrl = (typeof wc_add_to_cart_params !== 'undefined' && wc_add_to_cart_params.wc_ajax_url)
+            ? wc_add_to_cart_params.wc_ajax_url.toString().replace('%%endpoint%%', 'add_to_cart')
+            : '/?wc-ajax=add_to_cart';
 
         $.ajax({
-            url: '/?wc-ajax=add_to_cart',
+            url: ajaxUrl,
             type: 'POST',
             data: {
-                product_id: productId
+                product_id: productId,
+                quantity: qty
             },
-            success: function(response) {
-                $(document.body).trigger('added_to_cart');
-                $('.shopping-cart__quantity span').html(response.fragments['count']);
-               // window.location.reload();
+            success: function (response) {
+                $(document.body).trigger('added_to_cart', [response.fragments, response.cart_hash]);
 
+                if (response.fragments && response.fragments['count']) {
+                    $('.shopping-cart__quantity span').html(response.fragments['count']);
+                }
             },
-            error: function() {
+            error: function () {
                 console.error('error');
             }
         });
-
     });
+
+
+
+
 
     function show_form_error(msg='')
     {

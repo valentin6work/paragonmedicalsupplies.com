@@ -162,44 +162,76 @@
                                         <div class="wholesale-prices__wrap">
 
                                             <?php
-                                                if ($product->is_type('variable'))
-                                                {
-                                                    foreach ($variations as $variation)
-                                                    {
-                                                        $variation_obj = new WC_Product_Variation($variation['variation_id']);
-                                                        $attributes = $variation_obj->get_attributes();
-                                                        $description = $variation_obj->get_description();
+                                            if ( function_exists('get_field') && $product instanceof WC_Product ) {
 
+                                                // Репітер cost_discount можна вішати або на сам продукт, або на батьківський
+                                                $product_id = $product->get_id();
+                                                $rows       = get_field('cost_discount', $product_id);
 
-                                                        if ( $attributes['pa_count-by']!=$attribute_name )
-                                                        {
-                                                            $regular_price = $variation_obj->get_regular_price();
-                                                            $sale_price = $variation_obj->get_sale_price();
+                                                if ( ( ! is_array($rows) || empty($rows) ) && $product->is_type('variation') ) {
+                                                    $rows = get_field('cost_discount', $product->get_parent_id());
+                                                }
 
-                                                            if (is_user_company())
-                                                            {
-                                                                $regular_price = personal_discount($variation['variation_id'],$regular_price,$sale_price)['regular_price'];
-                                                                $sale_price = personal_discount($variation['variation_id'],$regular_price,$sale_price)['sale_price'];
-                                                            }
+                                                if ( is_array($rows) && ! empty($rows) ) {
 
-                                                            $varid =$variation_obj->get_id();
+                                                    // Базова ціна (Basic price) – як ти і хочеш, в інтерфейсі не змінюємо
+                                                    $base_price      = floatval( $product->get_price() );
+                                                    $currency_symbol = get_woocommerce_currency_symbol();
+                                                    $product_cart_id = $product->get_id();
 
-                                                            $term = get_term_by('slug', $attributes['pa_count-by'], 'pa_count-by');
-                                                            $display_value = $term->name;
+                                                    foreach ( $rows as $row ) {
 
+                                                        $count      = isset($row['count']) ? intval($row['count']) : 0;
+                                                        $percentage = isset($row['percentage']) ? floatval($row['percentage']) : 0;
 
-                                                            echo "
-                                                             <div class=\"wholesale-prices__item\" data-varid='$varid' data-sale='$sale_price' data-price='$regular_price'>
-                                                                <p>$display_value</p>
-                                                                <p class=\"wholesale-prices__price price__10off\">
-                                                                    <span>$currency_symbol&nbsp;$regular_price</span>/box</p>
-                                                                <p>$description</p>
-                                                            </div>
-                                                            ";
+                                                        if ( $count <= 0 || $percentage <= 0 ) {
+                                                            continue;
                                                         }
+
+                                                        // Ціна з урахуванням знижки з репітера
+                                                        $regular_price = $base_price * ( 1 - $percentage / 100 );
+                                                        $sale_price    = '';
+
+                                                        // Персональна знижка для компаній – залишаю твою логіку
+                                                        if ( function_exists('is_user_company') && is_user_company() && function_exists('personal_discount') ) {
+                                                            $pd            = personal_discount( $product_cart_id, $regular_price, $sale_price );
+                                                            $regular_price = isset($pd['regular_price']) ? $pd['regular_price'] : $regular_price;
+                                                            $sale_price    = isset($pd['sale_price']) ? $pd['sale_price'] : $sale_price;
+                                                        }
+
+                                                        // Те, що показуємо як назву – тут це кількість (можеш поміняти під свій текст)
+                                                        $display_value = $count . ' boxes';
+                                                        // Опис – відсоток знижки
+                                                        $description   = $percentage . '% off';
+
+                                                        // URL для додавання в корзину з потрібною кількістю
+                                                        $add_to_cart_url = esc_url( add_query_arg(
+                                                            array(
+                                                                'add-to-cart' => $product_cart_id,
+                                                                'quantity'    => $count,
+                                                            ),
+                                                            wc_get_cart_url()
+                                                        ) );
+
+                                                        $regular_price_html = wc_format_decimal( $regular_price, wc_get_price_decimals() );
+
+                                                        echo "
+             <div class=\"wholesale-prices__item\"
+                  data-url=\"{$add_to_cart_url}\"
+                  data-qty=\"{$count}\"
+                  data-price=\"{$regular_price_html}\"
+                  data-sale=\"{$sale_price}\">
+                <p>{$display_value}</p>
+                <p class=\"wholesale-prices__price price__10off\">
+                    <span>{$currency_symbol}&nbsp;{$regular_price_html}</span>/box</p>
+                <p>{$description}</p>
+            </div>
+            ";
                                                     }
                                                 }
+                                            }
                                             ?>
+
 
                                         </div>
                                     </div>
