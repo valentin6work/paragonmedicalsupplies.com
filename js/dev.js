@@ -1,5 +1,39 @@
 jQuery(document).ready(function(){
 
+    //------- filter more -----
+    let $list = $('ul.filter__type li');
+    let maxItems = 10;
+
+    // Спочатку сховати всі >10
+    $list.each(function(i){
+        if (i >= maxItems) $(this).hide();
+    });
+
+    // Обробник кнопки
+    $('#filterShowMoreType').on('click', function () {
+        let state = $(this).attr('data-state');
+
+        if (state === 'hidetype') {
+
+            // Показати всі
+            $list.show();
+
+            $(this).attr('data-state', 'showtype');
+            $(this).text('Hide..');
+
+        } else {
+
+            // Сховати все після 10
+            $list.each(function(i){
+                if (i >= maxItems) $(this).hide();
+            });
+
+            $(this).attr('data-state', 'hidetype');
+            $(this).text('More..');
+        }
+    });
+    //------- /filter more ----
+
     function initializeProductDescriptions(container) {
         const products = $(container).find('.description-text__wrap .product');
 

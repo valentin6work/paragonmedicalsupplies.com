@@ -82,7 +82,7 @@ $category_id = $current_category->term_id;
                                                 }
                                                 ?>
                                             </ul>
-
+                                            <button id="filterShowMoreType" data-state="hidetype" >More..</button>
                                         </div>
                                         <div class="filter-block-item">
                                             <h4>Brand</h4>
