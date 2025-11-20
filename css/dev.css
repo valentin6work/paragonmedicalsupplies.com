@@ -40,3 +40,8 @@
 #filterShowMoreType {
     color: #57606f;
 }
+
+.shop-categories__item
+{
+    width: calc(50% - 30px)!important;
+}
