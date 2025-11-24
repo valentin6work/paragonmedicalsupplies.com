@@ -2,7 +2,7 @@ jQuery(document).ready(function(){
 
     //------- filter more -----
     let $list = $('ul.filter__type li');
-    let maxItems = 10;
+    let maxItems = 5;
 
     // Спочатку сховати всі >10
     $list.each(function(i){
