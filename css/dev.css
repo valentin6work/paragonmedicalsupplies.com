@@ -41,7 +41,13 @@
     color: #57606f;
 }
 
-.shop-categories__item
-{
-    width: calc(50% - 30px)!important;
+.shop-categories__item {
+    width: calc((100% / 2) - 15px);
+
+@media screen and (max-width: 767px) {
+    width: calc((100% / 2) - 10px);
+}
+
+@media screen and (max-width: 575px) {
+    width: 100%;
 }
