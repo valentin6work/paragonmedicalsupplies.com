@@ -1423,6 +1423,23 @@ function set_custom_price_in_cart($cart) {
 
 //--------------- CHECK OUT ------
 
+add_action('wp_ajax_get_states', 'custom_get_states');
+add_action('wp_ajax_nopriv_get_states', 'custom_get_states');
+
+function custom_get_states() {
+    $country = sanitize_text_field($_POST['country']);
+
+    if (empty($country)) {
+        wp_send_json([]);
+    }
+
+    $states = WC()->countries->get_states($country);
+
+    wp_send_json($states ?: []);
+}
+
+
+
 remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20 );
 
 

@@ -54,6 +54,46 @@ $form_data = get_field('form_data',get_the_ID());
             ?>
         </main>
     </div>
+
+    <script>
+        jQuery(function($){
+
+            $(document).on('change', '#shipping_country', function() {
+
+                let country = $(this).val();
+
+                $.ajax({
+                    url: '/wp-admin/admin-ajax.php',
+                    method: 'POST',
+                    data: {
+                        action: 'get_states',
+                        country: country
+                    },
+                    success: function(states){
+
+                        let $state = $('#shipping_state');
+
+                        $state.empty();
+
+                        if( Object.keys(states).length === 0 ){
+                            $state.append('<option value="">No states required</option>');
+                            $state.trigger('change');
+                            return;
+                        }
+                        $state.append('<option value="">Select state</option>');
+
+                        $.each(states, function(code, name){
+                            $state.append('<option value="'+code+'">'+name+'</option>');
+                        });
+
+                        $state.trigger('change');
+                    }
+                });
+            });
+
+        });
+
+    </script>
 <?php
     }
 
