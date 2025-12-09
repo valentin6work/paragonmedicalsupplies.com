@@ -39,7 +39,9 @@ defined( 'ABSPATH' ) || exit;
                         Order number: <span><?php echo $order->get_order_number();?></span>
                     </li>
                 </ul>
-                <a href="#" class="btn-main btn-large">track your order</a>
+
+                <a href="<?php echo $order->get_view_order_url();?>" class="btn-main btn-large">track your order</a>
+
                 <div class="woocommerce-order-details">
                     <h2 class="woocommerce-order-details__title">Order Summary</h2>
                     <table
