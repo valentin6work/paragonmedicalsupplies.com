@@ -20,7 +20,7 @@ remove_action('woocommerce_after_shop_loop', 'woocommerce_output_content_wrapper
  */
 function display_woocommerce_categories() {
 
-    $list_cat= get_field('header','option');
+    /*$list_cat= get_field('header','option');
 
     if (isset($list_cat['list_category']) && count($list_cat['list_category']) )
     {
@@ -36,6 +36,7 @@ function display_woocommerce_categories() {
     }
 
     return;
+    */
 
     $categories = get_terms([
         'taxonomy' => 'product_cat',
