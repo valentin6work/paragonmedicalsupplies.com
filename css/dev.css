@@ -51,3 +51,21 @@
 @media screen and (max-width: 575px) {
     width: 100%;
 }
+}
+.order-received-section .woocommerce {
+  max-width: 100% !important;	
+}
+.woocommerce-page .woocommerce-thankyou-order-received {
+    font-size: 18px !important;
+}
+.woocommerce-table--order-details th {
+    color: #57606F;
+    font-weight: 400 !important;
+}
+.woocommerce-table--order-details td > a {
+  color: red !important;
+  font-weight: 700;
+}
+.woocommerce-customer-details .woocommerce-column--1, .woocommerce-customer-details .woocommerce-column--2 {
+    max-width: 100% !important;
+}
