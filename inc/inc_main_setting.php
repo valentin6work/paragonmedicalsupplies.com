@@ -9,7 +9,7 @@ function fn_wp_enqueue_scripts()
 
     wp_enqueue_style( theme_name.'-main', theme_url . '/css/main.min.css' );
 
-    wp_enqueue_style( theme_name.'-dev-style', theme_url . '/css/dev.css' );
+    wp_enqueue_style( theme_name.'-dev-style', theme_url . '/css/dev.css?t='.time() );
 
 
     wp_enqueue_script( theme_name.'-main.min', theme_url . '/js/main.min.js?t='.time(),NULL, NULL, true); // in footer
