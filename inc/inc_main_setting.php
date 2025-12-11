@@ -13,7 +13,7 @@ function fn_wp_enqueue_scripts()
 
 
     wp_enqueue_script( theme_name.'-main.min', theme_url . '/js/main.min.js?t='.time(),NULL, NULL, true); // in footer
-    wp_enqueue_script( theme_name.'-dev-js', theme_url . '/js/dev.js',NULL, NULL, true); // in footer
+    wp_enqueue_script( theme_name.'-dev-js', theme_url . '/js/dev.js?t='.time(),NULL, NULL, true); // in footer
 
 
     $is_user_logged = is_user_logged_in();
