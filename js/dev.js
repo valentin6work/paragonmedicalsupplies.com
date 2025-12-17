@@ -1421,7 +1421,7 @@ jQuery(document).ready(function(){
         const addressId = jQuery(this).data('address-id');
         if (addressId === undefined) return;
 
-        jQuery.post(ajaxurl, {
+        jQuery.post(ajaxurl.url, {
             action: 'set_ship_default',
             address_id: addressId
         }, function (res) {
@@ -1439,7 +1439,7 @@ jQuery(document).ready(function(){
         });
     });
 
-    jQuery(document).on('click', '.edit-link', function (e) {
+    jQuery(document).on('click', '.shipping-edit-link', function (e) {
         e.preventDefault();
 
         const $row = jQuery(this).closest('.shipping-and-billing__block-row');
@@ -1461,57 +1461,138 @@ jQuery(document).ready(function(){
         $form.find('#shipping_address_1').val(address.address_1 || '');
         $form.find('#shipping_address_2').val(address.address_2 || '');
 
-        // маркери редагування
         $form.find('#shipping_is_edit').val(1);
         $form.find('#shipping_edit_idx').val(addressId);
 
-        // показати форму + скрол
         $form.slideDown(200);
         jQuery('html, body').animate({
             scrollTop: $form.offset().top - 50
         }, 300);
     });
 
-    jQuery(document).on('click', '.edit-link', function (e) {
+    // -------- /shipping adress ---------
+
+    // -------- billing adress ---------
+    jQuery(document).on('click', '#btn_add_billing_field_cust_custom', function (e) {
         e.preventDefault();
 
-        const $row = jQuery(this).closest('.shipping-and-billing__block-row');
+        const form = document.getElementById('billing_block_adress');
+        if (!form) return;
+
+        if (form.reportValidity && !form.reportValidity()) return;
+        if (!form.reportValidity && !form.checkValidity()) return;
+
+        const formData = new FormData(form);
+        formData.append('action', 'add_billing_field_custom');
+
+        jQuery.ajax({
+            url: ajaxurl.url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+
+            success(res) {
+                if (!res.success) {
+                    alert(res.data?.message || 'Error');
+                    return;
+                }
+
+                // 🔥 після відправки — видалити маркери редагування
+                jQuery(form).find('input[name="billing_is_edit"]').remove();
+                jQuery(form).find('input[name="billing_edit_idx"]').remove();
+
+                // очистити форму (опційно)
+                form.reset();
+                jQuery(form).find('select').val(null).trigger('change');
+
+                window.location.reload();
+            },
+
+            error() {
+                alert('Server error');
+            }
+        });
+    });
+
+    jQuery(document).on('click', '.billing-edit-link', function (e) {
+        e.preventDefault();
+
+        const $row = jQuery(this).closest('.billing-row');
         const address = $row.data('address');
         const addressId = jQuery(this).data('address-id');
 
         if (!address) return;
 
-        const $form = jQuery('#shipping_block_adress');
+        const $form = jQuery('#billing_block_adress');
 
-        // заповнення полів
-        $form.find('#shipping_address_name').val(address.address_name || '');
-        $form.find('#shipping_phone').val(address.phone || '');
-        $form.find('#shipping_first_name').val(address.first_name || '');
-        $form.find('#shipping_last_name').val(address.last_name || '');
-        $form.find('#shipping_country').val(address.country).trigger('change');
-        $form.find('#shipping_state').val(address.state).trigger('change');
-        $form.find('#shipping_city').val(address.city || '');
-        $form.find('#shipping_postcode').val(address.postcode || '');
-        $form.find('#shipping_address_1').val(address.address_1 || '');
-        $form.find('#shipping_address_2').val(address.address_2 || '');
+        $form.find('#billing_address_name').val(address.address_name || '');
+        $form.find('#billing_phone').val(address.phone || '');
+        $form.find('#billing_first_name').val(address.first_name || '');
+        $form.find('#billing_last_name').val(address.last_name || '');
+        $form.find('#billing_country').val(address.country || '').trigger('change');
+        $form.find('#billing_state').val(address.state || '').trigger('change');
+        $form.find('#billing_city').val(address.city || '');
+        $form.find('#billing_postcode').val(address.postcode || '');
+        $form.find('#billing_address_1').val(address.address_1 || '');
+        $form.find('#billing_address_2').val(address.address_2 || '');
 
-        // 🔥 створюємо маркери редагування
-        $form.find('input[name="shipping_is_edit"]').remove();
-        $form.find('input[name="shipping_edit_idx"]').remove();
+        // 🔥 динамічно створюємо маркери редагування
+        $form.find('input[name="billing_is_edit"]').remove();
+        $form.find('input[name="billing_edit_idx"]').remove();
 
-        $form.append(`<input type="hidden" name="shipping_is_edit" value="1">`);
-        $form.append(`<input type="hidden" name="shipping_edit_idx" value="${addressId}">`);
+        $form.append('<input type="hidden" name="billing_is_edit" value="1">');
+        $form.append('<input type="hidden" name="billing_edit_idx" value="' + addressId + '">');
 
-        // показати форму
         $form.slideDown(200);
-        jQuery('html, body').animate({
-            scrollTop: $form.offset().top - 50
-        }, 300);
+        jQuery('html, body').animate({ scrollTop: $form.offset().top - 50 }, 300);
     });
 
+    jQuery(document).on('click', '.billing-default-button', function (e) {
+        e.preventDefault();
 
+        const addressId = jQuery(this).data('address-id');
+        if (addressId === undefined) return;
 
-    // -------- /shipping adress ---------
+        jQuery.post(ajaxurl.url, {
+            action: 'set_bill_default',
+            address_id: addressId
+        }, function (res) {
 
+            if (!res.success) {
+                alert(res.data?.message || 'Error');
+                return;
+            }
+
+            jQuery('.billing-default-button').removeClass('default-active');
+            jQuery('.billing-default-button[data-address-id="' + addressId + '"]').addClass('default-active');
+        });
+    });
+
+    jQuery(document).on('click', '.billing-remove-btn', function (e) {
+        e.preventDefault();
+
+        if (!confirm('Delete this billing address?')) return;
+
+        const addressId = jQuery(this).data('address-id');
+        const $row = jQuery(this).closest('.billing-row');
+
+        jQuery.post(ajaxurl.url, {
+            action: 'remove_billing_address',
+            address_id: addressId
+        }, function (res) {
+
+            if (!res.success) {
+                alert(res.data?.message || 'Error');
+                return;
+            }
+
+            $row.slideUp(200, function () {
+                jQuery(this).remove();
+            });
+        });
+    });
+
+    // -------- /billing adress --------
 
 });

@@ -1033,122 +1033,118 @@ function set_ship_default()
 //---------- billing ----------------
 
 add_action('wp_ajax_add_billing_field_custom', 'add_billing_field_custom');
+add_action('wp_ajax_remove_billing_address', 'remove_billing_address');
+add_action('wp_ajax_set_bill_default', 'set_bill_default');
+
 function add_billing_field_custom()
 {
     if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'User not logged in.']);
-        return;
+        wp_send_json_error(['message' => 'Unauthorized']);
     }
 
-    $user_id = intval(get_current_user_id());
+    $user_id = get_current_user_id();
 
-    $billing_first_name= sanitize_text_field($_POST['billing_first_name']);
-    $billing_phone = sanitize_text_field($_POST['billing_phone']);
-    $billing_address_1 = sanitize_text_field($_POST['billing_address_1']);
+    $data = [
+        'address_name' => sanitize_text_field($_POST['billing_address_name'] ?? ''),
+        'phone'        => sanitize_text_field($_POST['billing_phone'] ?? ''),
+        'first_name'   => sanitize_text_field($_POST['billing_first_name'] ?? ''),
+        'last_name'    => sanitize_text_field($_POST['billing_last_name'] ?? ''),
+        'country'      => sanitize_text_field($_POST['billing_country'] ?? ''),
+        'state'        => sanitize_text_field($_POST['billing_state'] ?? ''),
+        'city'         => sanitize_text_field($_POST['billing_city'] ?? ''),
+        'postcode'     => sanitize_text_field($_POST['billing_postcode'] ?? ''),
+        'address_1'    => sanitize_text_field($_POST['billing_address_1'] ?? ''),
+        // ⚠️ на випадок помилки в твоєму HTML (name="shipping_address_2")
+        'address_2'    => sanitize_text_field($_POST['billing_address_2'] ?? ($_POST['shipping_address_2'] ?? '')),
+    ];
 
-    $billing_is_edit = intval($_POST['billing_is_edit']);
-    $billing_edit_idx = intval($_POST['billing_edit_idx']);
-    $set_default = intval($_POST['set_default']);
-
-    if ($billing_is_edit && $billing_edit_idx>-1 ) // EDIT
-    {
-        $record = get_user_meta($user_id, 'billing_field_saved', true);
-
-        if (!is_array($record)) {
-            $record = [];
+    foreach ($data as $k => $v) {
+        if ($k !== 'address_2' && $v === '') {
+            wp_send_json_error(['message' => 'Missing field: ' . $k]);
         }
-
-        if (isset($record[$billing_edit_idx]))
-        {
-            $record[$billing_edit_idx] = [
-                'billing_first_name' => $billing_first_name,
-                'billing_phone' => $billing_phone,
-                'billing_address_1' => $billing_address_1,
-                'set_default' => $set_default,
-            ];
-        }
-
-        update_user_meta($user_id, 'billing_field_saved', $record);
-
-        wp_send_json_success(['message' => 'Edit successfully.', 'record' => $record]);
     }
-    else
-    {
-        $record = get_user_meta($user_id, 'billing_field_saved', true);
 
-        if (!is_array($record)) {
-            $record = [];
-        }
+    $is_edit  = intval($_POST['billing_is_edit'] ?? 0);
+    $edit_idx = intval($_POST['billing_edit_idx'] ?? -1);
 
-        $record[] = [
-            'billing_first_name' => $billing_first_name,
-            'billing_phone' => $billing_phone,
-            'billing_address_1' => $billing_address_1,
-            'set_default' => 0,
-        ];
+    $records = get_user_meta($user_id, 'billing_field_saved', true);
+    if (!is_array($records)) $records = [];
 
-        update_user_meta($user_id, 'billing_field_saved', $record);
+    if ($is_edit && isset($records[$edit_idx])) {
+        $records[$edit_idx] = array_merge($records[$edit_idx], $data);
+        update_user_meta($user_id, 'billing_field_saved', $records);
 
-        wp_send_json_success(['message' => 'Adding successfully.', 'record' => $record]);
+        wp_send_json_success([
+            'message' => 'Billing address updated',
+            'record'  => $records[$edit_idx],
+        ]);
     }
+
+    $records[] = array_merge($data, [
+        'created_at'  => current_time('mysql'),
+        'is_default'  => empty($records) ? 1 : 0,
+    ]);
+
+    update_user_meta($user_id, 'billing_field_saved', $records);
+
+    wp_send_json_success(['message' => 'Billing address added']);
 }
 
-add_action('wp_ajax_remove_billing_address', 'remove_billing_address');
-function remove_billing_address()
-{
-    if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'User not logged in.']);
-        return;
-    }
-
-    $user_id = intval(get_current_user_id());
-    $indx = intval($_POST['indx']);
-
-    $record = get_user_meta($user_id, 'billing_field_saved', true);
-
-    if (empty($record) || !isset($record[$indx])) {
-        wp_send_json_error(['message' => 'Invalid record or no records found.']);
-        return;
-    }
-
-    unset($record[$indx]);
-
-    $record = array_values($record);
-
-    update_user_meta($user_id, 'billing_field_saved', $record);
-    wp_send_json_success(['message' => 'Removed successfully.']);
-}
-
-add_action('wp_ajax_set_bill_default', 'set_bill_default');
 function set_bill_default()
 {
     if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'User not logged in.']);
-        return;
+        wp_send_json_error(['message' => 'Unauthorized']);
     }
 
-    $user_id = intval(get_current_user_id());
-    $indx = intval($_POST['indx']);
+    $user_id = get_current_user_id();
+    $idx = intval($_POST['address_id'] ?? -1);
 
-    $record = get_user_meta($user_id, 'billing_field_saved', true);
-
-    if (empty($record) || !isset($record[$indx])) {
-        wp_send_json_error(['message' => 'Invalid record or no records found.']);
-        return;
+    $records = get_user_meta($user_id, 'billing_field_saved', true);
+    if (!is_array($records) || !isset($records[$idx])) {
+        wp_send_json_error(['message' => 'Address not found']);
     }
 
-    foreach ($record as $k=>$v)
-    {
-        $record[$k]['set_default']=0;
+    foreach ($records as $k => &$r) {
+        $r['is_default'] = ($k === $idx) ? 1 : 0;
     }
+    unset($r);
 
-    $record[$indx]['set_default']=1;
+    update_user_meta($user_id, 'billing_field_saved', $records);
 
-    $record = array_values($record);
-
-    update_user_meta($user_id, 'billing_field_saved', $record);
-    wp_send_json_success(['message' => 'Set default successfully.','record'=>$record]);
+    wp_send_json_success(['message' => 'Default billing updated']);
 }
+
+function remove_billing_address()
+{
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'Unauthorized']);
+    }
+
+    $user_id = get_current_user_id();
+    $idx = intval($_POST['address_id'] ?? -1);
+
+    $records = get_user_meta($user_id, 'billing_field_saved', true);
+    if (!is_array($records) || !isset($records[$idx])) {
+        wp_send_json_error(['message' => 'Address not found']);
+    }
+
+    $was_default = !empty($records[$idx]['is_default']);
+
+    unset($records[$idx]);
+    $records = array_values($records);
+
+    // якщо видалили default — зробити default перший елемент
+    if ($was_default && !empty($records)) {
+        foreach ($records as &$r) $r['is_default'] = 0;
+        unset($r);
+        $records[0]['is_default'] = 1;
+    }
+
+    update_user_meta($user_id, 'billing_field_saved', $records);
+
+    wp_send_json_success(['message' => 'Billing address deleted']);
+}
+
 
 //---------- /billing ----------------
 ?>
