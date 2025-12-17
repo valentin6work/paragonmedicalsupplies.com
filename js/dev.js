@@ -1373,4 +1373,145 @@ jQuery(document).ready(function(){
         $('#btn_add_billing_field_cust').text('Save address');
     });
     //-------------- /billing_field ------------------
+
+
+
+    //---------- new change ------
+
+    // -------- shipping adress ---------
+    jQuery(document).on('click', '#btn_add_shipping_field_cust_custom', function (e) {
+        e.preventDefault();
+
+        const form = document.getElementById('shipping_block_adress');
+        if (!form) return;
+
+        if (form.reportValidity && !form.reportValidity()) return;
+        if (!form.reportValidity && !form.checkValidity()) return;
+
+        const formData = new FormData(form);
+        formData.append('action', 'add_shipping_field_custom');
+
+        jQuery.ajax({
+            url: ajaxurl.url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+
+            success(res) {
+
+                if (res.success)
+                {
+
+                    window.location.reload();
+                } else {
+                    alert(res.data?.message || 'Error');
+                }
+            },
+
+            error() {
+                alert('Server error');
+            }
+        });
+    });
+
+    jQuery(document).on('click', '.address-default-button', function (e) {
+        e.preventDefault();
+
+        const addressId = jQuery(this).data('address-id');
+        if (addressId === undefined) return;
+
+        jQuery.post(ajaxurl, {
+            action: 'set_ship_default',
+            address_id: addressId
+        }, function (res) {
+
+            if (!res.success) {
+                alert(res.data?.message || 'Error');
+                return;
+            }
+
+            jQuery('.address-default-button')
+                .removeClass('default-active');
+
+            jQuery(`.address-default-button[data-address-id="${addressId}"]`)
+                .addClass('default-active');
+        });
+    });
+
+    jQuery(document).on('click', '.edit-link', function (e) {
+        e.preventDefault();
+
+        const $row = jQuery(this).closest('.shipping-and-billing__block-row');
+        const address = $row.data('address');
+        const addressId = jQuery(this).data('address-id');
+
+        if (!address) return;
+
+        const $form = jQuery('#shipping_block_adress');
+
+        $form.find('#shipping_address_name').val(address.address_name || '');
+        $form.find('#shipping_phone').val(address.phone || '');
+        $form.find('#shipping_first_name').val(address.first_name || '');
+        $form.find('#shipping_last_name').val(address.last_name || '');
+        $form.find('#shipping_country').val(address.country).trigger('change');
+        $form.find('#shipping_state').val(address.state).trigger('change');
+        $form.find('#shipping_city').val(address.city || '');
+        $form.find('#shipping_postcode').val(address.postcode || '');
+        $form.find('#shipping_address_1').val(address.address_1 || '');
+        $form.find('#shipping_address_2').val(address.address_2 || '');
+
+        // маркери редагування
+        $form.find('#shipping_is_edit').val(1);
+        $form.find('#shipping_edit_idx').val(addressId);
+
+        // показати форму + скрол
+        $form.slideDown(200);
+        jQuery('html, body').animate({
+            scrollTop: $form.offset().top - 50
+        }, 300);
+    });
+
+    jQuery(document).on('click', '.edit-link', function (e) {
+        e.preventDefault();
+
+        const $row = jQuery(this).closest('.shipping-and-billing__block-row');
+        const address = $row.data('address');
+        const addressId = jQuery(this).data('address-id');
+
+        if (!address) return;
+
+        const $form = jQuery('#shipping_block_adress');
+
+        // заповнення полів
+        $form.find('#shipping_address_name').val(address.address_name || '');
+        $form.find('#shipping_phone').val(address.phone || '');
+        $form.find('#shipping_first_name').val(address.first_name || '');
+        $form.find('#shipping_last_name').val(address.last_name || '');
+        $form.find('#shipping_country').val(address.country).trigger('change');
+        $form.find('#shipping_state').val(address.state).trigger('change');
+        $form.find('#shipping_city').val(address.city || '');
+        $form.find('#shipping_postcode').val(address.postcode || '');
+        $form.find('#shipping_address_1').val(address.address_1 || '');
+        $form.find('#shipping_address_2').val(address.address_2 || '');
+
+        // 🔥 створюємо маркери редагування
+        $form.find('input[name="shipping_is_edit"]').remove();
+        $form.find('input[name="shipping_edit_idx"]').remove();
+
+        $form.append(`<input type="hidden" name="shipping_is_edit" value="1">`);
+        $form.append(`<input type="hidden" name="shipping_edit_idx" value="${addressId}">`);
+
+        // показати форму
+        $form.slideDown(200);
+        jQuery('html, body').animate({
+            scrollTop: $form.offset().top - 50
+        }, 300);
+    });
+
+
+
+    // -------- /shipping adress ---------
+
+
 });

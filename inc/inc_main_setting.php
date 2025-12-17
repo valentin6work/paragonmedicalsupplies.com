@@ -918,118 +918,115 @@ add_action('wp_ajax_add_shipping_field_custom', 'add_shipping_field_custom');
 function add_shipping_field_custom()
 {
     if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'User not logged in.']);
-        return;
+        wp_send_json_error(['message' => 'Unauthorized']);
     }
 
-    $user_id = intval(get_current_user_id());
+    $user_id = get_current_user_id();
 
-    $shipping_first_name= sanitize_text_field($_POST['shipping_first_name']);
-    $shipping_phone = sanitize_text_field($_POST['shipping_phone']);
-    $shipping_address_1 = sanitize_text_field($_POST['shipping_address_1']);
+    $data = [
+        'address_name' => sanitize_text_field($_POST['shipping_address_name'] ?? ''),
+        'phone'        => sanitize_text_field($_POST['shipping_phone'] ?? ''),
+        'first_name'   => sanitize_text_field($_POST['shipping_first_name'] ?? ''),
+        'last_name'    => sanitize_text_field($_POST['shipping_last_name'] ?? ''),
+        'country'      => sanitize_text_field($_POST['shipping_country'] ?? ''),
+        'state'        => sanitize_text_field($_POST['shipping_state'] ?? ''),
+        'city'         => sanitize_text_field($_POST['shipping_city'] ?? ''),
+        'postcode'     => sanitize_text_field($_POST['shipping_postcode'] ?? ''),
+        'address_1'    => sanitize_text_field($_POST['shipping_address_1'] ?? ''),
+        'address_2'    => sanitize_text_field($_POST['shipping_address_2'] ?? ''),
+    ];
 
-    $shipping_is_edit = intval($_POST['shipping_is_edit']);
-    $shipping_edit_idx = intval($_POST['shipping_edit_idx']);
-    $set_default = intval($_POST['set_default']);
-
-    if ($shipping_is_edit && $shipping_edit_idx>-1 ) // EDIT
-    {
-        $record = get_user_meta($user_id, 'shipping_field_saved', true);
-
-        if (!is_array($record)) {
-            $record = [];
+    foreach ($data as $k => $v) {
+        if ($k !== 'address_2' && $v === '') {
+            wp_send_json_error(['message' => 'Missing field: ' . $k]);
         }
-
-        if (isset($record[$shipping_edit_idx]))
-        {
-            $record[$shipping_edit_idx] = [
-                'shipping_first_name' => $shipping_first_name,
-                'shipping_phone' => $shipping_phone,
-                'shipping_address_1' => $shipping_address_1,
-                'set_default' => $set_default,
-            ];
-        }
-
-        update_user_meta($user_id, 'shipping_field_saved', $record);
-
-        wp_send_json_success(['message' => 'Edit successfully.', 'record' => $record]);
     }
-    else
-    {
-        $record = get_user_meta($user_id, 'shipping_field_saved', true);
 
-        if (!is_array($record)) {
-            $record = [];
-        }
+    $is_edit = intval($_POST['shipping_is_edit'] ?? 0);
+    $edit_idx = intval($_POST['shipping_edit_idx'] ?? -1);
 
-        $record[] = [
-            'shipping_first_name' => $shipping_first_name,
-            'shipping_phone' => $shipping_phone,
-            'shipping_address_1' => $shipping_address_1,
-            'set_default' => 0,
-        ];
-
-        update_user_meta($user_id, 'shipping_field_saved', $record);
-
-        wp_send_json_success(['message' => 'Adding successfully.', 'record' => $record]);
+    $records = get_user_meta($user_id, 'shipping_field_saved', true);
+    if (!is_array($records)) {
+        $records = [];
     }
+
+    if ($is_edit && isset($records[$edit_idx])) {
+
+        $records[$edit_idx] = array_merge(
+            $records[$edit_idx],
+            $data
+        );
+
+        update_user_meta($user_id, 'shipping_field_saved', $records);
+
+        wp_send_json_success([
+            'message' => 'Address updated',
+            'record'  => $records[$edit_idx],
+        ]);
+    }
+
+    $records[] = array_merge($data, [
+        'created_at' => current_time('mysql'),
+        'is_default' => empty($records) ? 1 : 0,
+    ]);
+
+    update_user_meta($user_id, 'shipping_field_saved', $records);
+
+    wp_send_json_success([
+        'message' => 'Address added',
+    ]);
 }
 
 add_action('wp_ajax_remove_shipping_address', 'remove_shipping_address');
 function remove_shipping_address()
 {
     if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'User not logged in.']);
-        return;
+        wp_send_json_error(['message' => 'Unauthorized']);
     }
 
-    $user_id = intval(get_current_user_id());
-    $indx = intval($_POST['indx']);
+    $user_id = get_current_user_id();
+    $idx = intval($_POST['address_id'] ?? -1);
 
-    $record = get_user_meta($user_id, 'shipping_field_saved', true);
-
-    if (empty($record) || !isset($record[$indx])) {
-        wp_send_json_error(['message' => 'Invalid record or no records found.']);
-        return;
+    $records = get_user_meta($user_id, 'shipping_field_saved', true);
+    if (!is_array($records) || !isset($records[$idx])) {
+        wp_send_json_error(['message' => 'Address not found']);
     }
 
-    unset($record[$indx]);
+    unset($records[$idx]);
+    $records = array_values($records);
 
-    $record = array_values($record);
+    if (!empty($records) && !array_filter($records, fn($a) => !empty($a['is_default']))) {
+        $records[0]['is_default'] = 1;
+    }
 
-    update_user_meta($user_id, 'shipping_field_saved', $record);
-    wp_send_json_success(['message' => 'Removed successfully.']);
+    update_user_meta($user_id, 'shipping_field_saved', $records);
+
+    wp_send_json_success(['message' => 'Address deleted']);
 }
 
 add_action('wp_ajax_set_ship_default', 'set_ship_default');
 function set_ship_default()
 {
     if (!is_user_logged_in()) {
-        wp_send_json_error(['message' => 'User not logged in.']);
-        return;
+        wp_send_json_error(['message' => 'Unauthorized']);
     }
 
-    $user_id = intval(get_current_user_id());
-    $indx = intval($_POST['indx']);
+    $user_id = get_current_user_id();
+    $idx = intval($_POST['address_id'] ?? -1);
 
-    $record = get_user_meta($user_id, 'shipping_field_saved', true);
-
-    if (empty($record) || !isset($record[$indx])) {
-        wp_send_json_error(['message' => 'Invalid record or no records found.']);
-        return;
+    $records = get_user_meta($user_id, 'shipping_field_saved', true);
+    if (!is_array($records) || !isset($records[$idx])) {
+        wp_send_json_error(['message' => 'Address not found']);
     }
 
-    foreach ($record as $k=>$v)
-    {
-        $record[$k]['set_default']=0;
+    foreach ($records as $key => &$record) {
+        $record['is_default'] = ($key === $idx) ? 1 : 0;
     }
+    unset($record);
 
-    $record[$indx]['set_default']=1;
+    update_user_meta($user_id, 'shipping_field_saved', $records);
 
-    $record = array_values($record);
-
-    update_user_meta($user_id, 'shipping_field_saved', $record);
-    wp_send_json_success(['message' => 'Set default successfully.','record'=>$record]);
+    wp_send_json_success(['message' => 'Default address updated']);
 }
 //--------------/shipping------------------------
 
