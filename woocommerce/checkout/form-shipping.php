@@ -44,151 +44,50 @@ defined( 'ABSPATH' ) || exit;
                 <div
                         class="woocommerce-shipping-fields__field-wrapper form-input">
 
-                    <!--
-                    <label for="shipping-first_name">First
-                        name<span class="red__star">*</span>
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__first_name form__input">
-                            <input type="text"
-                                   id="shipping-first_name"
-                                   autocapitalize="sentences"
-                                   autocomplete="given-name"
-                                   aria-label="First name"
-                                   required="" aria-invalid="false"
-                                   title="" value=""
-                                   placeholder="First name">
-                        </div>
-                    </label>
-                    <label for="shipping-last_name">Last
-                        name<span class="red__star">*</span>
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__last_name form__input">
-                            <input type="text"
-                                   id="shipping-last_name"
-                                   autocapitalize="sentences"
-                                   autocomplete="family-name"
-                                   aria-label="Last name"
-                                   required="" aria-invalid="false"
-                                   title="" value=""
-                                   placeholder="Last name">
-                        </div>
-                    </label>
-                    <label class="full-width"
-                           for="shipping-phone">Phone Number<span
-                                class="red__star">*</span>
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__phone form__input">
-                            <input type="tel"
-                                   id="shipping-phone"
-                                   autocapitalize="characters"
-                                   autocomplete="tel"
-                                   aria-invalid="false" title=""
-                                   value=""
-                                   placeholder="Phone Number"
-                                   required>
-                        </div>
-                    </label>
-                    <label for="shipping-address_1">Street
-                        Address <span class="red__star">*</span>
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__address_1">
-                            <input type="text"
-                                   id="shipping-address_1"
-                                   autocapitalize="sentences"
-                                   autocomplete="address-line1"
-                                   aria-label="Street address"
-                                   required="" aria-invalid="false"
-                                   title="" value=""
-                                   placeholder="Street Address">
-                        </div>
-                    </label>
-                    <label for="shipping-address_2">Address
-                        Details
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__address_2 form__input">
-                            <input type="text"
-                                   id="shipping-address_2"
-                                   autocapitalize="sentences"
-                                   autocomplete="address-line2"
-                                   aria-label="Apartment, suite, unit, etc."
-                                   aria-invalid="false" title=""
-                                   value=""
-                                   placeholder="Apt, suite, unit, floor">
-                        </div></label>
-                    <label for="shipping-city"
-                           class="full-width">City<span
-                                class="red__star">*</span>
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__city form__input">
-                            <select id="shipping-city"
-                                    class="js-example-basic-single"
-                                    required>
-                                <option value=""
-                                        selected>Select city
-                                </option>
-                                <option value="city1">City 1
-                                </option>
-                                <option value="city2">City 2
-                                </option>
-                                <option value="city3">City 3
-                                </option>
-                            </select>
-                        </div>
-                    </label>
-                    <label for="shipping-postcode">ZIP Code<span
-                                class="red__star">*</span>
-                        <div
-                                class="wc-block-components-text-input wc-block-components-address-form__postcode form__input">
-                            <input type="text"
-                                   id="shipping-postcode"
-                                   autocapitalize="characters"
-                                   autocomplete="postal-code"
-                                   aria-label="Postcode / ZIP"
-                                   required="" aria-invalid="false"
-                                   title="" value=""
-                                   placeholder="ZIP Code">
-                        </div>
-                    </label>
-                    <label for="shipping-state">State<span
-                                class="red__star">*</span>
-                        <div id="shipping-state"
-                             class="wc-block-components-combobox wc-block-components-address-form__state wc-block-components-state-input form__input">
-                            <select id="stateSelect"
-                                    class="js-example-basic-single"
-                                    required>
-                                <option value=""
-                                        selected>Select state
-                                </option>
-                                <option value="State1">State 1
-                                </option>
-                                <option value="State2">State 2
-                                </option>
-                                <option value="State3">State 3
-                                </option>
-                            </select>
-                        </div>
-                    </label>
-                    <label for="shipping-method"
-                           class="full-width">Shipping Method<span
-                                class="red__star">*</span>
-                        <div id="shipping-method"
-                             class="wc-block-components-combobox wc-block-components-address-form__state wc-block-components-state-input form__input">
-                            <select id="shipping-method"
-                                    class="js-example-basic-single"
-                                    required>
-                                <option value=""
-                                        selected>Select shipping
-                                    method</option>
-                                <option value="shMethod1">
-                                    shipping method 1</option>
-                                <option value="shMethod2">
-                                    shipping method 2</option>
-                                <option value="shMethod3">
-                                    shipping method 3</option>
-                            </select>
-                        </div>
-                    </label>
-                    -->
+                    <?php if (is_user_logged_in()) { ?>
+                        <label for="shippingAddressName"
+                               class="full-width">Address Name
+                            <div class="form__input">
+
+                                <?php
+                                $user_id = get_current_user_id();
+                                $shipping_field_saved = get_user_meta($user_id, 'shipping_field_saved', true);
+
+                                $default_index = '';
+                                if (is_array($shipping_field_saved)) {
+                                    foreach ($shipping_field_saved as $i => $addr) {
+                                        if (!empty($addr['is_default'])) {
+                                            $default_index = (string) $i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                ?>
+
+                                <select id="shippingAddressName"
+                                        class="js-example-basic-single"
+                                        required >
+
+                                    <option value="">Select address name</option>
+
+                                    <?php if (is_array($shipping_field_saved)) :
+                                        foreach ($shipping_field_saved as $idx => $addr) : ?>
+                                            <option
+                                                    value="<?php echo esc_attr($idx); ?>"
+                                                <?php selected((string)$idx, $default_index); ?>
+                                                    data-address='<?php echo esc_attr(wp_json_encode($addr)); ?>'>
+                                                <?php echo esc_html($addr['address_name']); ?>
+                                            </option>
+                                        <?php endforeach;
+                                    endif; ?>
+
+                                </select>
+
+
+                            </div>
+                        </label>
+                    <?php } ?>
+
 
                     <?php
                         $checkout = WC()->checkout();
@@ -247,58 +146,116 @@ defined( 'ABSPATH' ) || exit;
 </fieldset>
 <!-- /Shipping Details -->
 
-<!--  <?php  echo str_replace($_SERVER['DOCUMENT_ROOT'],'',__FILE__); ?> ]  -->
+<?php if (is_user_logged_in()) { ?>
+    <script>
+        (function ($) {
 
-<?php return;?>
+            function getAddressFromShippingSelect() {
+                const $select = $('#shippingAddressName');
 
-<div class="woocommerce-shipping-fields">
-	<?php if ( true === WC()->cart->needs_shipping_address() ) : ?>
+                if (!$select.length) return null;
 
-		<h3 id="ship-to-different-address">
-			<label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox">
-				<input id="ship-to-different-address-checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox" <?php checked( apply_filters( 'woocommerce_ship_to_different_address_checked', 'shipping' === get_option( 'woocommerce_ship_to_destination' ) ? 1 : 0 ), 1 ); ?> type="checkbox" name="ship_to_different_address" value="1" /> <span><?php esc_html_e( 'Ship to a different address?', 'woocommerce' ); ?></span>
-			</label>
-		</h3>
+                // Select2
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    const data = $select.select2('data');
+                    if (!data || !data.length) return null;
 
-		<div class="shipping_address">
+                    const raw = data[0].element?.dataset?.address;
+                    if (!raw) return null;
 
-			<?php do_action( 'woocommerce_before_checkout_shipping_form', $checkout ); ?>
+                    try {
+                        return JSON.parse(raw);
+                    } catch (e) {
+                        console.error('Invalid JSON in data-address:', raw);
+                        return null;
+                    }
+                }
 
-			<div class="woocommerce-shipping-fields__field-wrapper">
-				<?php
-				$fields = $checkout->get_checkout_fields( 'shipping' );
+                // fallback
+                const raw = $select.find('option:selected').attr('data-address');
+                if (!raw) return null;
 
-				foreach ( $fields as $key => $field ) {
-					woocommerce_form_field( $key, $field, $checkout->get_value( $key ) );
-				}
-				?>
-			</div>
+                try {
+                    return JSON.parse(raw);
+                } catch (e) {
+                    console.error('Invalid JSON in data-address:', raw);
+                    return null;
+                }
+            }
 
-			<?php do_action( 'woocommerce_after_checkout_shipping_form', $checkout ); ?>
+            function setSelectValue($select, value) {
+                if (!$select.length) return;
+                if (!value) return;
 
-		</div>
+                $select.val(value).trigger('change');
+                $select.trigger('change.select2');
+            }
 
-	<?php endif; ?>
-</div>
-<div class="woocommerce-additional-fields">
-	<?php do_action( 'woocommerce_before_order_notes', $checkout ); ?>
+            function waitAndSetState(state) {
+                const $state = $('#shipping_state');
+                let attempts = 0;
 
-	<?php if ( apply_filters( 'woocommerce_enable_order_notes_field', 'yes' === get_option( 'woocommerce_enable_order_comments', 'yes' ) ) ) : ?>
+                const timer = setInterval(() => {
+                    attempts++;
 
-		<?php if ( ! WC()->cart->needs_shipping() || wc_ship_to_billing_address_only() ) : ?>
+                    if ($state.find('option[value="' + state + '"]').length) {
+                        setSelectValue($state, state);
+                        clearInterval(timer);
+                    }
 
-			<h3><?php esc_html_e( 'Additional information', 'woocommerce' ); ?></h3>
+                    if (attempts > 25) {
+                        console.warn('State not found:', state);
+                        clearInterval(timer);
+                    }
+                }, 100);
+            }
 
-		<?php endif; ?>
+            function fillShippingForm(address) {
+                if (!address) return;
 
-		<div class="woocommerce-additional-fields__field-wrapper">
-			<?php foreach ( $checkout->get_checkout_fields( 'order' ) as $key => $field ) : ?>
-				<?php woocommerce_form_field( $key, $field, $checkout->get_value( $key ) ); ?>
-			<?php endforeach; ?>
-		</div>
+                $('#shipping_first_name').val(address.first_name || '');
+                $('#shipping_last_name').val(address.last_name || '');
+                $('#shipping_phone').val(address.phone || '');
+                $('#shipping_address_1').val(address.address_1 || '');
+                $('#shipping_address_2').val(address.address_2 || '');
+                $('#shipping_city').val(address.city || '');
+                $('#shipping_postcode').val(address.postcode || '');
 
-	<?php endif; ?>
+                // COUNTRY (first)
+                if (address.country) {
+                    setSelectValue($('#shipping_country'), address.country);
+                }
 
-	<?php do_action( 'woocommerce_after_order_notes', $checkout ); ?>
-</div>
+                // STATE (after country rerender)
+                if (address.state) {
+                    waitAndSetState(address.state);
+                }
+            }
+
+            function applySelectedShippingAddress() {
+                const address = getAddressFromShippingSelect();
+                if (!address) return;
+
+                fillShippingForm(address);
+            }
+
+            // INIT
+            $(function () {
+                applySelectedShippingAddress();
+
+                // on Select2 change
+                $('#shippingAddressName').on('change select2:select', function () {
+                    applySelectedShippingAddress();
+                });
+            });
+
+        })(jQuery);
+
+
+    </script>
+<?php } ?>
+
+
+
+
 <!--  <?php  echo str_replace($_SERVER['DOCUMENT_ROOT'],'',__FILE__); ?> ]  -->

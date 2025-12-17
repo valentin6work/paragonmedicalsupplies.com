@@ -1378,7 +1378,56 @@ jQuery(document).ready(function(){
 
     //---------- new change ------
 
+    function renderStates($state, countryCode) {
+
+        if (!window.WC_ALL_STATES || !countryCode) {
+            return;
+        }
+
+        const states = window.WC_ALL_STATES[countryCode] || {};
+
+        $state.empty();
+
+        if (Object.keys(states).length > 0) {
+
+            $state.append('<option value="">Select a state</option>');
+
+            $.each(states, function (code, name) {
+                $state.append(
+                    $('<option>', {
+                        value: code,
+                        text: name
+                    })
+                );
+            });
+
+            $state.prop('disabled', false);
+
+        } else {
+
+            $state.append('<option value="">N/A</option>');
+            $state.prop('disabled', true);
+        }
+
+        // select2 support
+        if ($state.hasClass('select2-hidden-accessible')) {
+            $state.trigger('change.select2');
+        }
+    }
+
+
     // -------- shipping adress ---------
+    const $shipping_country = $('#shipping_country');
+    const $shipping_state   = $('#shipping_state');
+    // init
+    if ($shipping_country.val()) {
+        renderStates($shipping_state,$shipping_country.val());
+    }
+    // on change
+    $shipping_country.on('change', function () {
+        renderStates($shipping_state,this.value);
+    });
+
     jQuery(document).on('click', '#btn_add_shipping_field_cust_custom', function (e) {
         e.preventDefault();
 
@@ -1415,7 +1464,7 @@ jQuery(document).ready(function(){
         });
     });
 
-    jQuery(document).on('click', '.address-default-button', function (e) {
+    jQuery(document).on('click', '.shipping_default', function (e) {
         e.preventDefault();
 
         const addressId = jQuery(this).data('address-id');
@@ -1470,9 +1519,47 @@ jQuery(document).ready(function(){
         }, 300);
     });
 
+    jQuery(document).on('click', '.shipping_remove', function (e) {
+        e.preventDefault();
+
+        if (!confirm('Delete this shipping address?')) return;
+
+        const addressId = jQuery(this).data('address-id');
+        const $row = jQuery(this).closest('.billing-row');
+
+        jQuery.post(ajaxurl.url, {
+            action: 'remove_shipping_address',
+            address_id: addressId
+        }, function (res) {
+
+            if (!res.success) {
+                alert(res.data?.message || 'Error');
+                return;
+            }
+
+            $row.slideUp(200, function () {
+                jQuery(this).remove();
+            });
+        });
+    });
+
     // -------- /shipping adress ---------
 
     // -------- billing adress ---------
+
+
+    const $billing_country = $('#billing_country');
+    const $billing_state   = $('#billing_state');
+    // init
+    if ($billing_country.val()) {
+        renderStates($billing_state,$billing_country.val());
+    }
+    // on change
+    $billing_country.on('change', function () {
+        renderStates($billing_state,this.value);
+    });
+
+
     jQuery(document).on('click', '#btn_add_billing_field_cust_custom', function (e) {
         e.preventDefault();
 

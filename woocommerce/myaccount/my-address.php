@@ -373,7 +373,7 @@ $billing_field_saved = get_user_meta($user_id, 'billing_field_saved', true);
                                 <div class="shipping-and-billing__block-action">
 
                                     <button
-                                            class="address-default-button <?php echo $is_default ? 'default-active' : ''; ?>"
+                                            class="shipping_default address-default-button <?php echo $is_default ? 'default-active' : ''; ?>"
                                             data-address-id="<?php echo esc_attr($idx); ?>">
                                         Default
                                     </button>
@@ -385,7 +385,7 @@ $billing_field_saved = get_user_meta($user_id, 'billing_field_saved', true);
                                     </a>
 
                                     <button
-                                            class="remove-btn"
+                                            class="remove-btn shipping_remove"
                                             data-address-id="<?php echo esc_attr($idx); ?>">
                                         <img src="<?php echo get_template_directory_uri(); ?>/img/close_filter_cell.svg" alt="icon">
                                     </button>

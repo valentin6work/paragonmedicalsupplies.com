@@ -30,6 +30,16 @@ function fn_wp_enqueue_scripts()
         'theme_url'=>get_template_directory_uri(),
         'comparison_url'=>get_permalink(400),
     ));
+
+
+    if (!class_exists('WooCommerce')) return;
+
+    wp_add_inline_script(
+        'jquery',
+        'window.WC_ALL_STATES = ' . wp_json_encode(WC()->countries->get_states()) . ';',
+        'before'
+    );
+
 }
 
 
@@ -992,6 +1002,33 @@ function remove_shipping_address()
         wp_send_json_error(['message' => 'Address not found']);
     }
 
+    $was_default = !empty($records[$idx]['is_default']);
+
+    unset($records[$idx]);
+    $records = array_values($records);
+
+    if ($was_default && !empty($records)) {
+        foreach ($records as &$r) $r['is_default'] = 0;
+        unset($r);
+        $records[0]['is_default'] = 1;
+    }
+
+    update_user_meta($user_id, 'shipping_field_saved', $records);
+
+    wp_send_json_success(['message' => 'Shipping address deleted']);
+
+    /*if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'Unauthorized']);
+    }
+
+    $user_id = get_current_user_id();
+    $idx = intval($_POST['address_id'] ?? -1);
+
+    $records = get_user_meta($user_id, 'shipping_field_saved', true);
+    if (!is_array($records) || !isset($records[$idx])) {
+        wp_send_json_error(['message' => 'Address not found']);
+    }
+
     unset($records[$idx]);
     $records = array_values($records);
 
@@ -1001,7 +1038,7 @@ function remove_shipping_address()
 
     update_user_meta($user_id, 'shipping_field_saved', $records);
 
-    wp_send_json_success(['message' => 'Address deleted']);
+    wp_send_json_success(['message' => 'Address deleted']);*/
 }
 
 add_action('wp_ajax_set_ship_default', 'set_ship_default');
@@ -1133,7 +1170,6 @@ function remove_billing_address()
     unset($records[$idx]);
     $records = array_values($records);
 
-    // якщо видалили default — зробити default перший елемент
     if ($was_default && !empty($records)) {
         foreach ($records as &$r) $r['is_default'] = 0;
         unset($r);
