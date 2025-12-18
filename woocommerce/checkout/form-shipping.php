@@ -150,107 +150,137 @@ defined( 'ABSPATH' ) || exit;
     <script>
         (function ($) {
 
-            function getAddressFromShippingSelect() {
-                const $select = $('#shippingAddressName');
+            let LAST_ADDRESS = null;
+            let APPLY_TIMER  = null;
 
-                if (!$select.length) return null;
+            /* ===============================
+               HELPERS
+            =============================== */
 
-                // Select2
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    const data = $select.select2('data');
-                    if (!data || !data.length) return null;
+            function decodeHtml(str) {
+                const ta = document.createElement('textarea');
+                ta.innerHTML = str || '';
+                return ta.value;
+            }
 
-                    const raw = data[0].element?.dataset?.address;
-                    if (!raw) return null;
-
-                    try {
-                        return JSON.parse(raw);
-                    } catch (e) {
-                        console.error('Invalid JSON in data-address:', raw);
-                        return null;
-                    }
-                }
-
-                // fallback
-                const raw = $select.find('option:selected').attr('data-address');
+            function parseAddress(raw) {
                 if (!raw) return null;
-
                 try {
-                    return JSON.parse(raw);
+                    return JSON.parse(decodeHtml(raw));
                 } catch (e) {
-                    console.error('Invalid JSON in data-address:', raw);
+                    console.error('[ShipAddr] JSON error', raw);
                     return null;
                 }
             }
 
-            function setSelectValue($select, value) {
-                if (!$select.length) return;
-                if (!value) return;
-
-                $select.val(value).trigger('change');
-                $select.trigger('change.select2');
+            function getSelectedAddress() {
+                const opt = document.querySelector('#shippingAddressName option:checked');
+                if (!opt) return null;
+                return parseAddress(opt.getAttribute('data-address'));
             }
 
-            function waitAndSetState(state) {
-                const $state = $('#shipping_state');
-                let attempts = 0;
-
-                const timer = setInterval(() => {
-                    attempts++;
-
-                    if ($state.find('option[value="' + state + '"]').length) {
-                        setSelectValue($state, state);
-                        clearInterval(timer);
-                    }
-
-                    if (attempts > 25) {
-                        console.warn('State not found:', state);
-                        clearInterval(timer);
-                    }
-                }, 100);
+            function setField(sel, val) {
+                const el = document.querySelector(sel);
+                if (!el) return;
+                el.value = val || '';
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            function fillShippingForm(address) {
+            /* ===============================
+               CORE
+            =============================== */
+
+            function applyAddress(address) {
                 if (!address) return;
 
-                $('#shipping_first_name').val(address.first_name || '');
-                $('#shipping_last_name').val(address.last_name || '');
-                $('#shipping_phone').val(address.phone || '');
-                $('#shipping_address_1').val(address.address_1 || '');
-                $('#shipping_address_2').val(address.address_2 || '');
-                $('#shipping_city').val(address.city || '');
-                $('#shipping_postcode').val(address.postcode || '');
+                LAST_ADDRESS = address;
 
-                // COUNTRY (first)
+                // basic fields
+                setField('#shipping_first_name', address.first_name);
+                setField('#shipping_last_name',  address.last_name);
+                setField('#shipping_phone',      address.phone);
+                setField('#shipping_address_1',  address.address_1);
+                setField('#shipping_address_2',  address.address_2);
+                setField('#shipping_city',       address.city);
+                setField('#shipping_postcode',   address.postcode);
+
+                // country
                 if (address.country) {
-                    setSelectValue($('#shipping_country'), address.country);
+                    setField('#shipping_country', address.country);
                 }
 
-                // STATE (after country rerender)
-                if (address.state) {
-                    waitAndSetState(address.state);
+                // ⛔ НЕ ставимо state тут
+                // Woo все одно його скине
+                scheduleFinalStateApply();
+            }
+
+            /* ===============================
+               FINAL STATE APPLY (THE KEY)
+            =============================== */
+
+            function scheduleFinalStateApply() {
+                if (APPLY_TIMER) clearTimeout(APPLY_TIMER);
+
+                // ⏳ чекаємо поки Woo ЗАКІНЧИТЬ ВСІ ajax
+                APPLY_TIMER = setTimeout(finalApplyState, 1200);
+            }
+
+            function finalApplyState() {
+                if (!LAST_ADDRESS || !LAST_ADDRESS.state) return;
+
+                const state = LAST_ADDRESS.state;
+                const stateEl = document.querySelector('#shipping_state');
+                if (!stateEl) return;
+
+                // якщо option існує — це вже фінальний DOM
+                const opt = stateEl.querySelector(`option[value="${state}"]`);
+                if (!opt) {
+                    console.warn('[ShipAddr] Final state option not found', state);
+                    return;
                 }
+
+                // 🔒 ВСТАНОВЛЮЄМО БЕЗ CHANGE
+                stateEl.value = state;
+
+                // 🔥 і тільки ОДИН change
+                stateEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+                console.log('[ShipAddr] FINAL state applied:', state);
             }
 
-            function applySelectedShippingAddress() {
-                const address = getAddressFromShippingSelect();
-                if (!address) return;
+            /* ===============================
+               EVENTS
+            =============================== */
 
-                fillShippingForm(address);
-            }
-
-            // INIT
             $(function () {
-                applySelectedShippingAddress();
 
-                // on Select2 change
-                $('#shippingAddressName').on('change select2:select', function () {
-                    applySelectedShippingAddress();
+                // init
+                const initAddr = getSelectedAddress();
+                if (initAddr) {
+                    applyAddress(initAddr);
+                }
+
+                // select2
+                $(document).on('select2:select', '#shippingAddressName', function (e) {
+                    const el = e?.params?.data?.element;
+                    const addr = parseAddress(el?.getAttribute('data-address'));
+                    if (addr) applyAddress(addr);
+                });
+
+                // fallback
+                $(document).on('change', '#shippingAddressName', function () {
+                    const addr = getSelectedAddress();
+                    if (addr) applyAddress(addr);
+                });
+
+                // 🚨 КОЖЕН update_checkout — ПЕРЕПЛАНОВУЄМО фінальний state
+                $(document.body).on('updated_checkout updated_shipping_method wc_fragments_loaded', function () {
+                    scheduleFinalStateApply();
                 });
             });
 
         })(jQuery);
-
 
     </script>
 <?php } ?>
